@@ -27,6 +27,10 @@ import {
     Maximize2,
     Terminal,
     ChevronRight,
+    ChevronDown,
+    ChevronUp,
+    Menu,
+    MoreHorizontal,
     LayoutDashboard,
     Focus,
     Target,
@@ -110,6 +114,7 @@ const { addNodes, addEdges, onConnect, setNodes, setEdges, nodes: flowNodes, edg
 // 状态管理
 const ideaInput = ref('')
 const isLoading = ref(false)
+const isToolsExpanded = ref(false)
 const hoveredNodeId = ref<string | null>(null)
 const focusedNodeId = ref<string | null>(null)
 const draggingNodeId = ref<string | null>(null)
@@ -383,18 +388,36 @@ const expandIdea = async (param?: any, customInput?: string) => {
 
     if (!text || (parentNode ? parentNode.data.isExpanding : isLoading.value)) return
 
-    // 记录父节点加载状态
-    if (parentNode) {
-        const node = flowNodes.value.find(n => n.id === parentNode.id)
-        if (node) node.data.isExpanding = true
-    } else {
-        isLoading.value = true
-    }
+    let currentParentId = parentNode?.id
 
-    // 如果是第一次生成，清空画布
+    // 如果是第一次生成，立即创建根节点并清空画布
     if (!parentNode) {
+        isLoading.value = true
         setNodes([])
         setEdges([])
+
+        const rootId = 'root-' + Date.now()
+        currentParentId = rootId
+
+        addNodes({
+            id: rootId,
+            type: 'window',
+            position: { x: 50, y: 300 },
+            data: {
+                label: text,
+                description: t('node.coreIdea'),
+                type: 'root',
+                isExpanding: true,
+                followUp: ''
+            },
+            sourcePosition: Position.Right,
+            targetPosition: Position.Left
+        })
+
+        ideaInput.value = ''
+    } else {
+        const node = flowNodes.value.find(n => n.id === parentNode.id)
+        if (node) node.data.isExpanding = true
     }
 
     const systemPrompt = t('prompts.system')
@@ -433,45 +456,20 @@ const expandIdea = async (param?: any, customInput?: string) => {
         const data = await response.json()
         const result = JSON.parse(data.choices[0].message.content)
 
-        // 起始坐标
-        const startX = parentNode ? parentNode.position.x + 450 : 50
-        const startY = parentNode ? parentNode.position.y : 300
+        // 使用最新的节点位置计算子节点位置
+        const parentNodeObj = flowNodes.value.find(n => n.id === currentParentId)
+        const startX = parentNodeObj ? parentNodeObj.position.x : 50
+        const startY = parentNodeObj ? parentNodeObj.position.y : 300
 
-        // 创建根节点 (如果是第一次)
-        if (!parentNode) {
-            const rootId = 'root-' + Date.now()
-            addNodes({
-                id: rootId,
-                type: 'window',
-                position: { x: startX, y: startY },
-                data: {
-                    label: text,
-                    description: t('node.coreIdea'),
-                    type: 'root',
-                    isExpanding: false,
-                    followUp: ''
-                },
-                sourcePosition: Position.Right,
-                targetPosition: Position.Left
-            })
-
-            // 为后续子节点计算位置
-            processSubNodes(result.nodes, rootId, startX, startY)
-        } else {
-            processSubNodes(result.nodes, parentNode.id, startX, startY)
-        }
+        processSubNodes(result.nodes, currentParentId, startX, startY)
     } catch (error) {
         console.error('Expansion Error:', error)
     } finally {
-        if (parentNode) {
-            const node = flowNodes.value.find(n => n.id === parentNode.id)
-            if (node) {
-                node.data.isExpanding = false
-                // 不再自动清空 followUp，以便用户查看追问的问题
-            }
-        } else {
-            isLoading.value = false
+        const node = flowNodes.value.find(n => n.id === currentParentId)
+        if (node) {
+            node.data.isExpanding = false
         }
+        isLoading.value = false
     }
 }
 
@@ -518,101 +516,185 @@ const startNewSession = () => {
 <template>
     <div class="h-screen w-screen bg-white font-mono text-slate-800 relative overflow-hidden flex flex-col selection:bg-orange-100">
         <!-- 顶部导航栏 (工具栏) -->
-        <nav class="flex-none bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm z-50">
-            <div class="flex items-center gap-6">
-                <div class="flex items-center gap-2 mr-4">
+        <nav class="flex-none bg-white/80 backdrop-blur-md border-b border-slate-200 px-3 md:px-6 py-2 md:py-3 flex items-center justify-between shadow-sm z-50">
+            <div class="flex items-center gap-2 md:gap-6 flex-grow mr-2">
+                <div class="flex items-center gap-2 flex-shrink-0">
                     <div class="w-3 h-3 bg-orange-500 rounded-sm rotate-45"></div>
-                    <span class="font-black text-slate-900 tracking-tighter text-lg">ThinkFlow</span>
+                    <span class="font-black text-slate-900 tracking-tighter text-base md:text-lg">ThinkFlow</span>
                 </div>
 
-                <div class="h-6 w-[1px] bg-slate-200 mx-2"></div>
+                <div class="h-6 w-[1px] bg-slate-200 mx-1 md:mx-2 flex-shrink-0"></div>
 
-                <!-- 工具按钮组 -->
-                <div class="flex items-center gap-2">
+                <!-- 桌面端工具按钮组 -->
+                <div class="hidden md:flex items-center gap-2">
                     <!-- 重置画布 -->
-                    <button @click="startNewSession" class="toolbar-btn text-red-500 hover:bg-red-50 border-red-100" :title="t('nav.reset')">
-                        <Trash2 class="w-4 h-4" />
+                    <button @click="startNewSession" class="toolbar-btn text-red-500 hover:bg-red-50 border-red-100 flex-shrink-0" :title="t('nav.reset')">
+                        <Trash2 class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('nav.reset') }}</span>
                     </button>
 
-                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1 flex-shrink-0"></div>
 
                     <!-- 布局控制 -->
-                    <button @click="fitView({ padding: 0.2, duration: 800 })" class="toolbar-btn text-blue-500 hover:bg-blue-50 border-blue-100" :title="t('nav.fit')">
-                        <Focus class="w-4 h-4" />
+                    <button @click="fitView({ padding: 0.2, duration: 800 })" class="toolbar-btn text-blue-500 hover:bg-blue-50 border-blue-100 flex-shrink-0" :title="t('nav.fit')">
+                        <Focus class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('nav.fit') }}</span>
                     </button>
 
-                    <button @click="resetLayout" class="toolbar-btn text-purple-500 hover:bg-purple-50 border-purple-100" :title="t('nav.layout')">
-                        <LayoutDashboard class="w-4 h-4" />
+                    <button @click="resetLayout" class="toolbar-btn text-purple-500 hover:bg-purple-50 border-purple-100 flex-shrink-0" :title="t('nav.layout')">
+                        <LayoutDashboard class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('nav.layout') }}</span>
                     </button>
 
-                    <button @click="centerRoot" class="toolbar-btn text-orange-500 hover:bg-orange-50 border-orange-100" :title="t('nav.center')">
-                        <Target class="w-4 h-4" />
+                    <button @click="centerRoot" class="toolbar-btn text-orange-500 hover:bg-orange-50 border-orange-100 flex-shrink-0" :title="t('nav.center')">
+                        <Target class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('nav.center') }}</span>
                     </button>
 
-                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1 flex-shrink-0"></div>
 
                     <!-- 连线颜色 -->
-                    <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                        <Palette class="w-3.5 h-3.5 text-slate-400" />
-                        <input type="color" v-model="config.edgeColor" class="w-4 h-4 rounded cursor-pointer bg-transparent border-none" />
-                        <span class="text-[10px] font-bold text-slate-500 uppercase">{{ t('nav.edge') }}</span>
+                    <div class="flex items-center gap-2 px-2 md:px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100 flex-shrink-0">
+                        <Palette class="w-3 h-3 md:w-3.5 h-3.5 text-slate-400" />
+                        <input type="color" v-model="config.edgeColor" class="w-3.5 h-3.5 md:w-4 h-4 rounded cursor-pointer bg-transparent border-none" />
+                        <span class="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase">{{ t('nav.edge') }}</span>
                     </div>
 
                     <!-- 背景样式 -->
-                    <select v-model="config.backgroundVariant" class="toolbar-select">
+                    <select v-model="config.backgroundVariant" class="toolbar-select flex-shrink-0">
                         <option :value="BackgroundVariant.Lines">{{ t('nav.lines') }}</option>
                         <option :value="BackgroundVariant.Dots">{{ t('nav.dots') }}</option>
                     </select>
 
-                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1 flex-shrink-0"></div>
 
                     <!-- 小地图开关 -->
                     <button
                         @click="config.showMiniMap = !config.showMiniMap"
-                        class="toolbar-btn border-slate-100"
+                        class="toolbar-btn border-slate-100 flex-shrink-0"
                         :class="config.showMiniMap ? 'text-blue-500 bg-blue-50 border-blue-100' : 'text-slate-400 hover:text-slate-600'"
                         :title="t('nav.map')"
                     >
-                        <Map class="w-4 h-4" />
+                        <Map class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('nav.map') }}</span>
                     </button>
 
-                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1 flex-shrink-0"></div>
 
                     <!-- 导出图片 -->
-                    <button @click="exportImage" class="toolbar-btn text-emerald-600 hover:bg-emerald-50 border-emerald-100">
-                        <Download class="w-4 h-4" />
+                    <button @click="exportImage" class="toolbar-btn text-emerald-600 hover:bg-emerald-50 border-emerald-100 flex-shrink-0">
+                        <Download class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('nav.export') }}</span>
                     </button>
 
-                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1 flex-shrink-0"></div>
 
                     <!-- 设置按钮 -->
-                    <button @click="showSettings = true" class="toolbar-btn text-slate-600 hover:bg-slate-50 border-slate-100">
-                        <Settings class="w-4 h-4" />
+                    <button @click="showSettings = true" class="toolbar-btn text-slate-600 hover:bg-slate-50 border-slate-100 flex-shrink-0">
+                        <Settings class="w-3.5 h-3.5 md:w-4 h-4" />
                         <span>{{ t('common.settings') }}</span>
+                    </button>
+                </div>
+
+                <!-- 移动端工具切换按钮 -->
+                <div class="md:hidden flex items-center">
+                    <button 
+                        @click="isToolsExpanded = !isToolsExpanded"
+                        class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 active:bg-slate-100 transition-colors"
+                    >
+                        <Menu v-if="!isToolsExpanded" class="w-4 h-4" />
+                        <X v-else class="w-4 h-4" />
+                        <span class="text-xs font-bold">{{ t('common.tools' || 'Tools') }}</span>
+                        <ChevronDown v-if="!isToolsExpanded" class="w-3 h-3 opacity-50" />
+                        <ChevronUp v-else class="w-3 h-3 opacity-50" />
                     </button>
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
                 <button
                     @click="locale = locale === 'zh' ? 'en' : 'zh'"
-                    class="p-2 hover:bg-slate-100 rounded-md transition-colors text-slate-400 font-bold text-xs flex items-center gap-1"
+                    class="p-1.5 md:p-2 hover:bg-slate-100 rounded-md transition-colors text-slate-400 font-bold text-[10px] md:text-xs flex items-center gap-1"
                 >
-                    <Globe class="w-3.5 h-3.5" /> {{ locale === 'zh' ? 'EN' : 'ZH' }}
+                    <Globe class="w-3 h-3 md:w-3.5 h-3.5" /> {{ locale === 'zh' ? 'EN' : 'ZH' }}
                 </button>
-                <button
-                    class="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                <button v-if="false" 
+                    class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-slate-900 text-white rounded-lg md:rounded-xl text-[10px] md:text-xs font-black tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
                 >
-                    {{ t('common.signin') }} <LogIn class="w-3.5 h-3.5 ml-1" />
+                    <span>{{ t('common.signin') }}</span> <LogIn class="w-3 h-3 md:w-3.5 h-3.5 md:ml-1" />
                 </button>
             </div>
         </nav>
+
+        <!-- 移动端折叠工具栏 -->
+        <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="transform -translate-y-4 opacity-0"
+            enter-to-class="transform translate-y-0 opacity-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="transform translate-y-0 opacity-100"
+            leave-to-class="transform -translate-y-4 opacity-0"
+        >
+            <div v-if="isToolsExpanded" class="md:hidden absolute top-[57px] left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xl z-40 py-4 px-4 flex flex-wrap gap-3 justify-center">
+                <!-- 重置画布 -->
+                <button @click="startNewSession(); isToolsExpanded = false" class="toolbar-btn text-red-500 hover:bg-red-50 border-red-100" :title="t('nav.reset')">
+                    <Trash2 class="w-4 h-4" />
+                    <span>{{ t('nav.reset') }}</span>
+                </button>
+
+                <!-- 布局控制 -->
+                <button @click="fitView({ padding: 0.2, duration: 800 }); isToolsExpanded = false" class="toolbar-btn text-blue-500 hover:bg-blue-50 border-blue-100" :title="t('nav.fit')">
+                    <Focus class="w-4 h-4" />
+                    <span>{{ t('nav.fit') }}</span>
+                </button>
+
+                <button @click="resetLayout(); isToolsExpanded = false" class="toolbar-btn text-purple-500 hover:bg-purple-50 border-purple-100" :title="t('nav.layout')">
+                    <LayoutDashboard class="w-4 h-4" />
+                    <span>{{ t('nav.layout') }}</span>
+                </button>
+
+                <button @click="centerRoot(); isToolsExpanded = false" class="toolbar-btn text-orange-500 hover:bg-orange-50 border-orange-100" :title="t('nav.center')">
+                    <Target class="w-4 h-4" />
+                    <span>{{ t('nav.center') }}</span>
+                </button>
+
+                <!-- 连线颜色 -->
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                    <Palette class="w-4 h-4 text-slate-400" />
+                    <input type="color" v-model="config.edgeColor" class="w-4 h-4 rounded cursor-pointer bg-transparent border-none" />
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">{{ t('nav.edge') }}</span>
+                </div>
+
+                <!-- 背景样式 -->
+                <select v-model="config.backgroundVariant" class="toolbar-select">
+                    <option :value="BackgroundVariant.Lines">{{ t('nav.lines') }}</option>
+                    <option :value="BackgroundVariant.Dots">{{ t('nav.dots') }}</option>
+                </select>
+
+                <!-- 小地图开关 -->
+                <button
+                    @click="config.showMiniMap = !config.showMiniMap"
+                    class="toolbar-btn border-slate-100"
+                    :class="config.showMiniMap ? 'text-blue-500 bg-blue-50 border-blue-100' : 'text-slate-400 hover:text-slate-600'"
+                    :title="t('nav.map')"
+                >
+                    <Map class="w-4 h-4" />
+                    <span>{{ t('nav.map') }}</span>
+                </button>
+
+                <!-- 导出图片 -->
+                <button @click="exportImage(); isToolsExpanded = false" class="toolbar-btn text-emerald-600 hover:bg-emerald-50 border-emerald-100">
+                    <Download class="w-4 h-4" />
+                    <span>{{ t('nav.export') }}</span>
+                </button>
+
+                <!-- 设置按钮 -->
+                <button @click="showSettings = true; isToolsExpanded = false" class="toolbar-btn text-slate-600 hover:bg-slate-50 border-slate-100">
+                    <Settings class="w-4 h-4" />
+                    <span>{{ t('common.settings') }}</span>
+                </button>
+            </div>
+        </Transition>
 
         <!-- 主内容区：VueFlow 画布 -->
         <div class="flex-grow relative">
@@ -926,43 +1008,31 @@ const startNewSession = () => {
                     <img :src="previewImageUrl" class="max-w-screen max-h-screen object-contain" />
                 </div>
             </div>
-
-            <!-- 加载状态遮罩 -->
-            <div v-if="isLoading" class="absolute inset-0 z-[100] flex items-center justify-center bg-white/5 backdrop-blur-[1px] pointer-events-none">
-                <div class="bg-white/90 p-4 rounded-full shadow-2xl border border-orange-100 animate-bounce">
-                    <Zap class="w-8 h-8 text-orange-500" />
-                </div>
-            </div>
         </div>
 
         <!-- 底部全局操作栏 -->
-        <div class="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4 w-full max-w-2xl px-6">
-            <div class="flex items-center gap-3 w-full">
+        <div class="fixed bottom-6 md:bottom-12 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4 w-full max-w-2xl px-4 md:px-6">
+            <div class="flex items-center gap-2 md:gap-3 w-full">
                 <!-- 核心输入框容器 -->
                 <div
-                    class="flex-grow flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus-within:bg-white focus-within:shadow-xl focus-within:shadow-slate-100 transition-all"
+                    class="flex-grow flex items-center gap-2 md:gap-4 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl px-3 md:px-5 py-2 md:py-3 focus-within:bg-white focus-within:shadow-xl focus-within:shadow-slate-100 transition-all"
                 >
-                    <Terminal class="w-5 h-5 text-slate-400" />
+                    <Terminal class="w-4 h-4 md:w-5 h-5 text-slate-400 flex-shrink-0" />
                     <input
                         v-model="ideaInput"
                         :placeholder="t('nav.placeholder')"
-                        class="flex-grow bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                        class="flex-grow bg-transparent border-none outline-none text-xs md:text-sm font-bold text-slate-700 placeholder:text-slate-300 min-w-0"
                         @keyup.enter="expandIdea"
                     />
                     <button
                         @click="expandIdea"
                         :disabled="isLoading || !ideaInput.trim()"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all active:scale-95 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed group/btn"
+                        class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg md:rounded-xl transition-all active:scale-95 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed group/btn flex-shrink-0"
                     >
-                        <span class="text-[10px] font-black tracking-widest uppercase mr-1">{{ t('nav.execute') }}</span>
-                        <Zap v-if="!isLoading" class="w-4 h-4 text-orange-400 group-hover/btn:scale-110 transition-transform" />
-                        <RefreshCw v-else class="w-4 h-4 animate-spin" />
+                        <span class="text-[9px] md:text-[10px] font-black tracking-widest uppercase">{{ t('nav.execute') }}</span>
+                        <Zap v-if="!isLoading" class="w-3.5 h-3.5 md:w-4 h-4 text-orange-400 group-hover/btn:scale-110 transition-transform" />
+                        <RefreshCw v-else class="w-3.5 h-3.5 md:w-4 h-4 animate-spin" />
                     </button>
-                </div>
-
-                <!-- 底部按钮组 (仅保留核心功能) -->
-                <div class="flex items-center gap-2">
-                    <!-- 这里可以根据需要放一些其他快捷按钮 -->
                 </div>
             </div>
         </div>
@@ -1033,7 +1103,7 @@ body {
 }
 
 .vue-flow__controls {
-    @apply !bg-white !border-slate-200 !shadow-xl !rounded-lg !left-6 !bottom-6;
+    @apply !bg-white !border-slate-200 !shadow-xl !rounded-lg !left-4 md:!left-6 !bottom-28 md:!bottom-6 !transition-all;
 }
 
 .vue-flow__controls-button {
@@ -1041,9 +1111,20 @@ body {
 }
 
 .vue-flow__minimap {
-    @apply !bg-white/80 !backdrop-blur-md !border-slate-200 !shadow-2xl !rounded-xl !overflow-hidden !m-6;
-    width: 200px !important;
-    height: 150px !important;
+    @apply !bg-white/80 !backdrop-blur-md !border-slate-200 !shadow-2xl !rounded-xl !overflow-hidden !transition-all;
+    margin: 1.5rem !important;
+    bottom: 80px !important;
+    right: 0 !important;
+    width: 180px !important;
+    height: 120px !important;
+}
+
+@media (min-width: 768px) {
+    .vue-flow__minimap {
+        bottom: 0 !important;
+        width: 220px !important;
+        height: 160px !important;
+    }
 }
 
 .vue-flow__minimap-mask {
@@ -1094,5 +1175,14 @@ input:focus::placeholder {
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 </style>
