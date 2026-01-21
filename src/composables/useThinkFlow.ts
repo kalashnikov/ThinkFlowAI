@@ -657,6 +657,8 @@ export function useThinkFlow({ t, locale }: { t: Translate; locale: Ref<string> 
         try {
             const topic = node.data.label || prompt
             const detail = node.data.description || ''
+            const path = findPathToNode(nodeId)
+            const context = path.length > 5 ? `... -> ${path.slice(-4).join(' -> ')}` : path.join(' -> ')
             const response = await fetch(useConfig.baseUrl, {
                 method: 'POST',
                 headers: {
@@ -665,7 +667,7 @@ export function useThinkFlow({ t, locale }: { t: Translate; locale: Ref<string> 
                 },
                 body: JSON.stringify({
                     model: useConfig.model,
-                    prompt: t('prompts.image', { topic, detail })
+                    prompt: t('prompts.image', { topic, detail, context })
                 })
             })
 
