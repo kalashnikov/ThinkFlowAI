@@ -24,16 +24,23 @@ import {
     X,
     Maximize2,
     Terminal,
-    ChevronRight
+    ChevronRight,
+    LayoutDashboard,
+    Focus,
+    Target,
+    Map
 } from 'lucide-vue-next'
 import { VueFlow, useVueFlow, Position, MarkerType, Handle } from '@vue-flow/core'
 import { Background, BackgroundVariant } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
+import { MiniMap } from '@vue-flow/minimap'
 import { toPng } from 'html-to-image'
 
 // 导入 VueFlow 样式
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/minimap/dist/style.css'
+import '@vue-flow/controls/dist/style.css'
 
 // API 配置
 const API_KEY = import.meta.env.VITE_ZHIPU_AI_API_KEY
@@ -48,6 +55,24 @@ const hoveredNodeId = ref<string | null>(null)
 const focusedNodeId = ref<string | null>(null)
 const draggingNodeId = ref<string | null>(null)
 const previewImageUrl = ref<string | null>(null)
+
+// 画布控制状态
+const panOnDrag = ref(true)
+const isSpacePressed = ref(false)
+
+// 键盘监听：按住空格键开启抓手拖拽
+window.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+        isSpacePressed.value = true
+        panOnDrag.value = true
+    }
+})
+
+window.addEventListener('keyup', e => {
+    if (e.code === 'Space') {
+        isSpacePressed.value = false
+    }
+})
 
 // 拖拽监听
 onNodeDragStart(e => {
@@ -120,7 +145,8 @@ const config = reactive({
     edgeColor: '#fed7aa',
     edgeStyle: 'smoothstep',
     backgroundVariant: BackgroundVariant.Lines,
-    showControls: true
+    showControls: true,
+    showMiniMap: true
 })
 
 const lastAppliedStatus = ref('')
@@ -157,6 +183,56 @@ watch(
     },
     { immediate: true }
 )
+
+/**
+ * 聚焦到根节点
+ */
+const centerRoot = () => {
+    const rootNode = flowNodes.value.find(n => n.data.type === 'root')
+    if (rootNode) {
+        fitView({ nodes: [rootNode.id], padding: 2, duration: 800 })
+    }
+}
+
+/**
+ * 重置布局
+ */
+const resetLayout = () => {
+    // 找到根节点
+    const rootNode = flowNodes.value.find(n => n.data.type === 'root')
+    if (!rootNode) return
+
+    // 重新计算所有节点位置
+    const visited = new Set<string>()
+    const layoutNode = (nodeId: string, x: number, y: number) => {
+        if (visited.has(nodeId)) return
+        visited.add(nodeId)
+
+        const node = flowNodes.value.find(n => n.id === nodeId)
+        if (node) {
+            node.position = { x, y }
+
+            // 找到所有子节点
+            const childEdges = flowEdges.value.filter(e => e.source === nodeId)
+            childEdges.forEach((edge, index) => {
+                const offsetX = 450
+                // 计算子节点垂直分布
+                const totalHeight = (childEdges.length - 1) * 280
+                const startY = y - totalHeight / 2
+                const offsetY = index * 280
+
+                layoutNode(edge.target, x + offsetX, startY + offsetY)
+            })
+        }
+    }
+
+    layoutNode(rootNode.id, 50, 300)
+
+    // 动画过渡到合适视图
+    setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 })
+    }, 100)
+}
 
 /**
  * 导出为图片
@@ -198,7 +274,7 @@ const generateNodeImage = async (nodeId: string, prompt: string) => {
             },
             body: JSON.stringify({
                 model: 'cogview-3-flash',
-                prompt: `一张精美的、极简插画风格的图片，表现主题：${prompt}。要求：构图简洁，色彩明快，适合作为思维导图的视觉辅助。`
+                prompt: `生成一张图片，表现主题：${prompt}。要求：构图简洁，色彩明快，适合作为思维导图的视觉辅助。`
             })
         })
 
@@ -410,6 +486,24 @@ const startNewSession = () => {
 
                     <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
 
+                    <!-- 布局控制 -->
+                    <button @click="fitView({ padding: 0.2, duration: 800 })" class="toolbar-btn text-blue-500 hover:bg-blue-50 border-blue-100" title="Fit View">
+                        <Focus class="w-4 h-4" />
+                        <span>FIT</span>
+                    </button>
+
+                    <button @click="resetLayout" class="toolbar-btn text-purple-500 hover:bg-purple-50 border-purple-100" title="Reset Layout">
+                        <LayoutDashboard class="w-4 h-4" />
+                        <span>LAYOUT</span>
+                    </button>
+
+                    <button @click="centerRoot" class="toolbar-btn text-orange-500 hover:bg-orange-50 border-orange-100" title="Center Root">
+                        <Target class="w-4 h-4" />
+                        <span>CENTER</span>
+                    </button>
+
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+
                     <!-- 连线颜色 -->
                     <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
                         <Palette class="w-3.5 h-3.5 text-slate-400" />
@@ -422,6 +516,19 @@ const startNewSession = () => {
                         <option :value="BackgroundVariant.Lines">LINES</option>
                         <option :value="BackgroundVariant.Dots">DOTS</option>
                     </select>
+
+                    <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
+
+                    <!-- 小地图开关 -->
+                    <button
+                        @click="config.showMiniMap = !config.showMiniMap"
+                        class="toolbar-btn border-slate-100"
+                        :class="config.showMiniMap ? 'text-blue-500 bg-blue-50 border-blue-100' : 'text-slate-400 hover:text-slate-600'"
+                        title="Toggle Minimap"
+                    >
+                        <Map class="w-4 h-4" />
+                        <span>MAP</span>
+                    </button>
 
                     <div class="h-4 w-[1px] bg-slate-100 mx-1"></div>
 
@@ -447,9 +554,17 @@ const startNewSession = () => {
 
         <!-- 主内容区：VueFlow 画布 -->
         <div class="flex-grow relative">
-            <VueFlow :default-edge-options="{ type: 'smoothstep' }" :fit-view-on-init="true" class="bg-white">
+            <VueFlow
+                :default-edge-options="{ type: 'smoothstep' }"
+                :fit-view-on-init="true"
+                class="bg-white"
+                :class="{ 'space-pressed': isSpacePressed }"
+                :pan-on-drag="panOnDrag"
+                :selection-key-code="'Shift'"
+            >
                 <Background :variant="config.backgroundVariant" pattern-color="#f2f2f2" :gap="24" :size="0.5" />
                 <Controls v-if="config.showControls" />
+                <MiniMap v-if="config.showMiniMap" pannable zoomable />
 
                 <!-- 自定义节点插槽 -->
                 <template #node-window="{ id, data, selected }">
@@ -711,6 +826,33 @@ body {
 
 .vue-flow__controls-button {
     @apply !border-slate-100 !fill-slate-400 hover:!bg-slate-50 !transition-colors;
+}
+
+.vue-flow__minimap {
+    @apply !bg-white/80 !backdrop-blur-md !border-slate-200 !shadow-2xl !rounded-xl !overflow-hidden !m-6;
+    width: 200px !important;
+    height: 150px !important;
+}
+
+.vue-flow__minimap-mask {
+    @apply !fill-slate-500/5;
+}
+
+.vue-flow__minimap-node {
+    @apply !fill-slate-200 !stroke-none;
+}
+
+/* Custom Controls for Space Dragging */
+.vue-flow__pane {
+    cursor: default;
+}
+
+.vue-flow__pane.space-pressed {
+    cursor: grab;
+}
+
+.vue-flow__pane.space-pressed:active {
+    cursor: grabbing;
 }
 
 .vue-flow__background {
