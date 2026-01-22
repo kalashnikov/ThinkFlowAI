@@ -156,7 +156,7 @@ const fitToView = () => {
         <div class="flex-grow relative">
             <VueFlow
                 :default-edge-options="{ type: config.edgeType }"
-                :fit-view-on-init="true"
+                :fit-view-on-init="false"
                 class="bg-white"
                 :class="{ 'space-pressed': isSpacePressed }"
                 :pan-on-drag="panOnDrag"

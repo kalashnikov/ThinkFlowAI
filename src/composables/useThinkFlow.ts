@@ -920,6 +920,11 @@ export function useThinkFlow({ t, locale }: { t: Translate; locale: Ref<string> 
                 targetPosition: Position.Left
             })
 
+            // 初始添加根节点时进行一次较大的缩放，突出根节点
+            setTimeout(() => {
+                fitView({ nodes: [rootId], padding: 0.4, duration: 600, maxZoom: 1.2 })
+            }, 50)
+
             ideaInput.value = ''
         } else {
             const node = flowNodes.value.find(n => n.id === parentNode.id)
@@ -990,12 +995,13 @@ export function useThinkFlow({ t, locale }: { t: Translate; locale: Ref<string> 
                     const childEdges = flowEdges.value.filter(e => e.source === currentParentId)
                     const childIds = childEdges.map(e => e.target)
 
-                    const nodesToFit = [currentParentId, ...childIds.slice(0, 3)]
+                    const nodesToFit = [currentParentId, ...childIds]
 
                     fitView({
                         nodes: nodesToFit,
-                        padding: 0.25,
-                        duration: 1000
+                        padding: 0.15, // 极小边距，使内容充满屏幕
+                        duration: 1000,
+                        maxZoom: 1.2 // 允许更大的缩放
                     })
                 }, 100)
             }
