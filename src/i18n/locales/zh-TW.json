@@ -1,0 +1,92 @@
+{
+  "common": {
+    "settings": "API 設定",
+    "default": "預設介面",
+    "custom": "自訂介面",
+    "save": "儲存並關閉",
+    "cancel": "取消",
+    "confirm": "確定",
+    "close": "關閉",
+    "loading": "載入中...",
+    "generating": "生成中...",
+    "summarizing": "正在生成全篇總結...",
+    "summaryTitle": "思維全篇總結",
+    "aiGenerated": "AI 智慧生成",
+    "expanding": "思考中...",
+    "active": "啟用",
+    "signin": "登入",
+    "tools": "工具箱",
+    "confirmReset": "確定要重置畫布嗎？目前的所有想法都將遺失。",
+    "error": {
+      "title": "請求失敗",
+      "cors": "網路請求受阻，可能是跨網域(CORS)政策或網路連線問題。",
+      "rateLimit": "請求過於頻繁(429)，請稍後再試。",
+      "badRequest": "請求參數錯誤(400)，請檢查設定。",
+      "serverError": "伺服器內部錯誤(500)，請稍後再試。",
+      "unknown": "發生未知錯誤，請檢查網路或 API 設定。",
+      "retry": "重試"
+    }
+  },
+  "nav": {
+    "title": "ThinkFlow AI",
+    "subtitle": "思維導圖 & AI 助手",
+    "placeholder": "在這裡輸入您的想法...",
+    "execute": "提交想法",
+    "reset": "重置",
+    "fit": "適配",
+    "layout": "佈局",
+    "center": "起點",
+    "edge": "連線",
+    "edgeTypes": {
+      "default": "曲線",
+      "straight": "直線",
+      "step": "折線",
+      "smoothstep": "圓角",
+      "simplebezier": "平滑"
+    },
+    "lines": "網格",
+    "dots": "點陣",
+    "map": "地圖",
+    "summary": "總結",
+    "export": "匯出",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "退出全螢幕",
+    "hierarchicalDragging": "聯動拖曳"
+  },
+  "settings": {
+    "title": "API 設定",
+    "subtitle": "設定您的 AI 介面位址",
+    "textGen": "文字生成",
+    "imageGen": "圖片生成",
+    "baseUrl": "介面位址 (Base URL)",
+    "modelName": "模型名稱",
+    "apiKey": "API 金鑰 (Key)",
+    "placeholderUrl": "https://api.example.com/v1/chat/completions",
+    "placeholderModel": "模型名稱",
+    "placeholderKey": "sk-...",
+    "defaultModeTitle": "使用預設介面",
+    "defaultModeDesc": "目前使用 Bigmodel（智譜）提供的免費文字生成介面 glm-4-flash 和圖片生成介面 cogview-3-flash，為了更好的體驗請自訂介面。"
+  },
+  "node": {
+    "root": "根節點",
+    "coreIdea": "核心想法",
+    "followUp": "輸入後續問題...",
+    "imgAction": "生圖",
+    "deepDive": "回答",
+    "view": "檢視",
+    "regenerate": "重新生成",
+    "mainTitle": "主節點",
+    "moduleTitle": "子節點"
+  },
+  "prompts": {
+    "system": "你是一個思維發散助手，幫助使用者將想法逐層展開，建構思維樹。\n\n工作流程：\n1. 使用者給出一個初始想法（或選擇一個已有節點繼續追問）。\n2. 你需要根據【思考上下文路徑】（即從根節點到目前節點的思考鏈路）來理解使用者的意圖。\n3. 生成 3-5 個更深層或相關維度的子想法。\n4. 每個子想法包含簡短名稱和簡單描述。\n\n返回格式必須為嚴格 JSON：\n{\n  \"nodes\": [\n    { \"text\": \"子想法1名稱\", \"description\": \"一句話描述\" },\n    { \"text\": \"子想法2名稱\", \"description\": \"一句話描述\" }\n  ]\n}\n\n注意：只返回 JSON，不附加解釋。",
+    "image": "請生成一張思維導圖的核心配圖，需同時具備視覺吸引力和概念清晰度。\n\n畫面主體與構圖：\n- 核心概念：{topic}\n- 關鍵細節與特徵：{detail}\n- 環境/背景暗示：{context}（作為畫面氛圍或元素參考，不喧賓奪主）\n\n視覺風格要求：\n- 攝影類型：專業級寫實攝影，接近商業靜物或概念攝影風格\n- 構圖：乾淨、聚焦、有視覺層次，主體突出\n- 光影：自然光或柔和的電影光，明暗對比有氛圍感\n- 材質與細節：真實質感，細節豐富但不雜亂\n- 色彩：低飽和度、高級灰調或自然色調，色彩統一有層次\n- 透視與比例：準確、舒適，略帶一點視覺張力（若適用）\n\n畫面品質：\n- 超高清，細節銳利\n- 噪點控制得當，畫面乾淨\n- 景深有層次，焦點清晰\n\n不適合出現的元素（嚴禁）：\n- 文字、浮水印、標誌、邊框\n- 任何非寫實風格：卡通、漫畫、插畫、3D渲染感、手繪效果\n- 過度濾鏡、畫面變形、模糊、低解析度\n- 背景雜亂、色彩刺眼、元素堆砌\n\n特別說明：\n請將 {topic} 作為視覺焦點，{detail} 作為可識別的特徵融入畫面，{context} 作為環境或氛圍參考。整體畫面應寧靜、有深度、易於理解，適合作為思維導圖的視覺中心。",
+    "continue": "請繼續深入發散",
+    "coreIdeaPrefix": "核心想法",
+    "contextPath": "思考上下文路徑",
+    "selectedNode": "目前選擇節點",
+    "newRequirement": "使用者追問/新要求",
+    "deepDivePrompt": "你正在為思維導圖中的一個節點生成「回答」。必須結合根問題與從根到目前節點的上下文路徑進行解釋，避免跑偏。\n\n根問題/核心想法：{rootTopic}\n上下文路徑（從根到目前）：{context}\n目前節點：{topic}\n提示：{detail}\n\n要求：\n1. 輸出 300-500 字左右，結構清晰，包含背景、核心原理、關鍵要點與實際應用/例子。\n2. 所有解釋都要明確呼應「根問題/核心想法」，並說明該節點在整條路徑中的作用與位置。\n3. 若資訊不足，請給出合理假設並標註「假設」。\n4. 直接輸出正文內容（可使用 Markdown 小標題/列表），不要包含 JSON，也不要寫開場白/結束語。",
+    "summaryPrompt": "你是一個思維總結專家。請根據以下提供的思維導圖節點資訊（包含核心想法及其發散出的所有子想法），生成一份結構化的全篇總結。\n\n節點資料如下：\n{nodes}\n\n要求：\n1. 提煉出核心主題及其背後的核心邏輯。\n2. 歸納出幾個主要的維度或分支方向。\n3. 總結最終達成的洞察或結論。\n4. 語言要精煉、專業，富有啟發性。\n5. 直接輸出總結內容，不要包含 JSON 格式，不要有任何開場白。"
+  }
+}

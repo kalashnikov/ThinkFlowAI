@@ -121,10 +121,12 @@ const horizontalGuideStyle = computed(() => {
 })
 
 /**
- * 切换语言（zh <-> en）
+ * 切換語言（zh-TW -> en -> zh -> zh-TW）
  */
 const toggleLocale = () => {
-    locale.value = locale.value === 'zh' ? 'en' : 'zh'
+    const order = ['zh-TW', 'en', 'zh']
+    const currentIndex = order.indexOf(locale.value)
+    locale.value = order[(currentIndex + 1) % order.length]
 }
 
 /**

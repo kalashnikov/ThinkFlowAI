@@ -196,7 +196,7 @@ const callAndClose = (fn: () => void) => {
                 @click="emit('toggle-locale')"
                 class="p-1.5 md:p-2 hover:bg-slate-100 rounded-md transition-colors text-slate-400 font-bold text-[10px] md:text-xs flex items-center gap-1"
             >
-                <Globe class="w-3.5 h-3.5 md:w-4 h-4" /> {{ props.locale === 'zh' ? 'EN' : 'ZH' }}
+                <Globe class="w-3.5 h-3.5 md:w-4 h-4" /> {{ props.locale === 'zh-TW' ? '繁' : props.locale === 'en' ? 'EN' : '简' }}
             </button>
         </div>
     </nav>
