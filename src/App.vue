@@ -28,6 +28,7 @@ import ResetConfirmModal from './components/ResetConfirmModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SummaryModal from './components/SummaryModal.vue'
 import TopNav from './components/TopNav.vue'
+import SideNav from './components/SideNav.vue'
 import WindowNode from './components/WindowNode.vue'
 
 // 业务层：统一的状态与动作入口
@@ -43,7 +44,7 @@ const isFullscreen = ref(false)
 
 const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch((err) => {
+        document.documentElement.requestFullscreen().catch(err => {
             console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`)
         })
     } else {
@@ -150,6 +151,8 @@ const fitToView = () => {
             @toggle-locale="toggleLocale"
         />
 
+        <SideNav :t="t" :locale="locale" :config="config" />
+
         <div class="flex-grow relative">
             <VueFlow
                 :default-edge-options="{ type: config.edgeType }"
@@ -168,7 +171,7 @@ const fitToView = () => {
                     :gap="24"
                     :size="config.backgroundVariant === BackgroundVariant.Dots ? 1 : 0.5"
                 />
-                <Controls v-if="config.showControls" :show-fullscreen="false" :show-fit-view="false">
+                <Controls v-if="false" :show-fullscreen="false" :show-fit-view="false">
                     <ControlButton @click="toggleFullscreen" :title="isFullscreen ? t('nav.exitFullscreen') : t('nav.fullscreen')">
                         <component :is="isFullscreen ? Minimize : Maximize" class="w-4 h-4 text-slate-500" />
                     </ControlButton>
